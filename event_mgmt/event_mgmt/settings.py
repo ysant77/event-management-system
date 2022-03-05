@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'versatileimagefield',
     'rest_framework_simplejwt.token_blacklist',
     'django_nose',
+    'rest_framework_swagger',
     'event'
 ]
 
