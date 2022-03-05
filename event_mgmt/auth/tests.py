@@ -1,10 +1,8 @@
 import json
 
 from django.contrib.auth.models import User
-from django.http import HttpResponse
 from django.urls import reverse
 
-from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase, APIRequestFactory, force_authenticate
 
 from .views import LogoutView, ChangePasswordView, UpdateProfileView
@@ -12,9 +10,9 @@ from .views import LogoutView, ChangePasswordView, UpdateProfileView
 class RegisterViewAPITestCase(APITestCase):
     url = reverse("auth_register")
 
-    def test_password_password2_different(self):
+    def test_password_confirmpassword_different(self):
         """
-        Test to verify that a post call with invalid passwords
+        Test to verify that a register user fails if password and confirm are different
         """
 
         user_data = {
@@ -23,9 +21,11 @@ class RegisterViewAPITestCase(APITestCase):
             "first_name":"test1",
             "last_name":"user",
             "password":"test123@",
-            "password2":"ttttt"
+            "confirmpassword":"ttttt"
         }
+        #make a post request with the payload
         response = self.client.post(self.url, user_data)
+        #decode the binary response
         response_content = json.loads(response.content.decode())
         
         self.assertEqual(400, response.status_code)
@@ -33,7 +33,7 @@ class RegisterViewAPITestCase(APITestCase):
     
     def test_user_registration(self):
         """
-        Test to verify that a post call with valid user data creates user 
+        Test to verify that with correct payload a new user is created successfully
         """
         user_data = {
             "username":"testuser",
@@ -41,18 +41,19 @@ class RegisterViewAPITestCase(APITestCase):
             "first_name":"test1",
             "last_name":"user",
             "password":"test123@",
-            "password2":"test123@"
+            "confirmpassword":"test123@"
         }
         response = self.client.post(self.url, user_data)
         response_content = json.loads(response.content.decode())
         
         self.assertEqual(201, response.status_code)
+        #response data won't be having password and hence response is a subset of request payload
         self.assertDictContainsSubset(response_content, user_data)
     
 
     def test_unique_username_validation(self):
         """
-        Test to verify that username is unique
+        Test to verify that unique validation of username is correctly implemented
         """
         user_data_1 = {
             "username":"testuser",
@@ -60,20 +61,21 @@ class RegisterViewAPITestCase(APITestCase):
             "first_name":"test1",
             "last_name":"user",
             "password":"test123@",
-            "password2":"test123@"
+            "confirmpassword":"test123@"
         }
         response = self.client.post(self.url, user_data_1)
         response_content = json.loads(response.content.decode())
         
         self.assertEqual(201, response.status_code)
         self.assertDictContainsSubset(response_content, user_data_1)
+        #try creating user with same username
         user_data_2 = {
             "username":"testuser",
-            "email":"testuser@test.com",
+            "email":"testuser1@test.com",
             "first_name":"test1",
             "last_name":"user",
             "password":"test123@",
-            "password2":"test123@"
+            "confirmpassword":"test123@"
         }
         response = self.client.post(self.url, user_data_2)
         response_content = json.loads(response.content.decode())
@@ -83,7 +85,7 @@ class RegisterViewAPITestCase(APITestCase):
         
     def test_unique_email_validation(self):
         """
-        Test to verify that email is unique
+        Test to verify that unique validation of email is correctly implemented
         """
         user_data_1 = {
             "username":"testuser",
@@ -91,7 +93,7 @@ class RegisterViewAPITestCase(APITestCase):
             "first_name":"test1",
             "last_name":"user",
             "password":"test123@",
-            "password2":"test123@"
+            "confirmpassword":"test123@"
         }
         response = self.client.post(self.url, user_data_1)
         response_content = json.loads(response.content.decode())
@@ -104,8 +106,9 @@ class RegisterViewAPITestCase(APITestCase):
             "first_name":"test1",
             "last_name":"user",
             "password":"test123@",
-            "password2":"test123@"
+            "confirmpassword":"test123@"
         }
+        #another request payload with same email id as that of earlier
         response = self.client.post(self.url, user_data_2)
         response_content = json.loads(response.content.decode())
        
@@ -123,14 +126,23 @@ class LoginAPIViewTestCase(APITestCase):
         self.user = User.objects.create_user(self.username, self.email, self.password)
         
     def test_authentication_without_password(self):
+        """
+        Test to verify that login fails if no password is given
+        """
         response = self.client.post(self.url, {"username": self.username})
         self.assertEqual(400, response.status_code)
 
     def test_authentication_with_wrong_password(self):
+        """
+        Test to verify that login fails if password is incorrect
+        """
         response = self.client.post(self.url, {"username": self.username, "password": "I_know"})
         self.assertEqual(401, response.status_code)
 
     def test_authentication_with_valid_data(self):
+        """
+        Test to verify that user is logged in with correct credentials and a pair of access/refresh tokens is returned
+        """
         response = self.client.post(self.url, {"username": self.username, "password": self.password})
 
         response_content = json.loads(response.content.decode())
@@ -152,6 +164,9 @@ class LogoutAPIViewTestCase(APITestCase):
 
     
     def test_logout_with_invalid_token(self):
+        """
+        Test to verify that logout fails if invalid refresh token is passed
+        """
         data = {
             "refresh_token":"sjsjwhwuwhbbsbhququshxx"
         }
@@ -162,7 +177,9 @@ class LogoutAPIViewTestCase(APITestCase):
         self.assertEqual("Authentication credentials were not provided.", response_contents["detail"])
 
     def test_logout_with_valid_token(self):
-        
+        """
+        Test to verify that logout succeeds if valid refresh token in passed
+        """
         response = self.client.post(reverse("token_obtain_pair"), {"username": self.username, "password": self.password})
         contents = json.loads(response.content.decode())
         data = {
@@ -189,38 +206,40 @@ class ChangePasswordViewAPITestCase(APITestCase):
         self.url = reverse("auth_change_password", kwargs={"pk":self.user.pk})
         self.factory = APIRequestFactory()
     
-    def test_password_password2_different(self):
+    def test_password_confirmpassword_different(self):
         """
-        Test to verify that a post call with invalid passwords
+        Test to verify that password change would fail if password and confirm passwords are different
         """
 
 
         user_data = {
             "password":"test123@",
-            "password2":"ttttt",
+            "confirmpassword":"ttttt",
             "old_password":"tester123@"
         }
         response = self.client.post(reverse("token_obtain_pair"), {"username": self.username, "password": self.password})
         contents = json.loads(response.content.decode())
        
+        #get a put request from api request factory and forcefully authenticate the user
         request = self.factory.put(self.url, data=user_data)
         force_authenticate(request, user=self.user, token=contents["access"])
 
         
         view = ChangePasswordView.as_view()
+        #send request to change password view now
         response = view(request, pk=self.user.pk)
         
         self.assertEqual(400, response.status_code)
 
     def test_password_oldpassword_different(self):
         """
-        Test to verify that a put call with invalid passwords
+        Test to verify that change password fails if old password is not correct
         """
 
 
         user_data = {
             "password":"test123@",
-            "password2":"test123@",
+            "confirmpassword":"test123@",
             "old_password":"test123"
         }
         response = self.client.post(reverse("token_obtain_pair"), {"username": self.username, "password": self.password})
@@ -234,15 +253,16 @@ class ChangePasswordViewAPITestCase(APITestCase):
         response = view(request, pk=self.user.pk)
         
         self.assertEqual(400, response.status_code)
+
     def test_change_password(self):
         """
-        Test to verify that a put call with valid passwords
+        Test to verify that change passwords would succeed if all validations succeed
         """
 
 
         user_data = {
             "password":"test1234@",
-            "password2":"test1234@",
+            "confirmpassword":"test1234@",
             "old_password":"tester123@"
         }
         response = self.client.post(reverse("token_obtain_pair"), {"username": self.username, "password": self.password})
@@ -277,7 +297,7 @@ class UpdateProfileViewAPITestCase(APITestCase):
     
     def test_update_profile_with_existing_email(self):
         """
-        Test to verify that a post call with invalid passwords
+        Test to verify that update profile fails if new email already exists in database
         """
 
 
@@ -302,7 +322,7 @@ class UpdateProfileViewAPITestCase(APITestCase):
 
     def test_update_profile_with_existing_username(self):
         """
-        Test to verify that a post call with invalid passwords
+        Test to verify that update profile fails if new username already exists in database
         """
 
 
@@ -327,7 +347,7 @@ class UpdateProfileViewAPITestCase(APITestCase):
 
     def test_update_profile_with_existing_username(self):
         """
-        Test to verify that a post call with invalid passwords
+        Test to verify that update profile succeeds if all validations succeed
         """
 
 

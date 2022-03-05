@@ -5,29 +5,49 @@ from django.contrib.auth.password_validation import validate_password
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    """
+    Serializer class for registering users
+    
+    """
+    #make sure email is a valid field and unique
     email = serializers.EmailField(
             required=True,
             validators=[UniqueValidator(queryset=User.objects.all())]
             )
 
+    #validates the password against the django password requirements
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
+    confirmpassword = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ('username', 'password', 'password2', 'email', 'first_name', 'last_name')
+        fields = ('username', 'password', 'confirmpassword', 'email', 'first_name', 'last_name')
         extra_kwargs = {
             'first_name': {'required': True},
             'last_name': {'required': True}
         }
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
+        """
+        Method to validate if entered password and confirm password matches or not.
+        Input:
+            attrs ==> dictionary that represents user input
+        Output:
+            validation error if any else simply returns the input
+        """
+        if attrs['password'] != attrs['confirmpassword']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
 
         return attrs
 
     def create(self, validated_data):
+        """
+        Method to create the user.
+        Input:
+            validated_data ==> input data that meets the necessary validations.
+        Output:
+            user object (new user that just got created)
+        """
         user = User.objects.create(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -42,29 +62,56 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class ChangePasswordSerializer(serializers.ModelSerializer):
+    """
+    Serializer to change password of existing user
+
+    """
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
+    confirmpassword = serializers.CharField(write_only=True, required=True)
     old_password = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ('old_password', 'password', 'password2')
+        fields = ('old_password', 'password', 'confirmpassword')
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
+        """
+        Method to validate if entered password and confirm password matches or not.
+        Input:
+            attrs ==> dictionary that represents user input
+        Output:
+            validation error if any else simply returns the input
+        """
+        if attrs['password'] != attrs['confirmpassword']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
 
         return attrs
 
     def validate_old_password(self, value):
+        """
+        Method to validate if entered old password matches with the record in database or not
+        Input:
+            value ==> respresents old password
+        Output:
+            validation error if any else simply returns the input
+        """
+        #check_password is used as we don't store user password in plain text
         user = self.context['request'].user
         if not user.check_password(value):
             raise serializers.ValidationError({"old_password": "Old password is not correct"})
         return value
 
     def update(self, instance, validated_data):
+        """
+        Method to update the passwords
+        Input:
+            instance ==> current user instance
+            validated_data ==> input data that meets the necessary validations.
+        Output:
+            instance (with password updated)
+        """
         user = self.context['request'].user
-        
+        #to ensure current user is the one trying to change his/her own password
         if user.pk != instance.pk:
             raise serializers.ValidationError({"authorize": "You dont have permission for this user."})
 
@@ -76,7 +123,9 @@ class ChangePasswordSerializer(serializers.ModelSerializer):
 
 class UpdateUserSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
-
+    """
+    Serializer class to update user profile.
+    """
     class Meta:
         model = User
         fields = ('username', 'first_name', 'last_name', 'email')
@@ -86,20 +135,43 @@ class UpdateUserSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, value):
+        """
+        Method to validate email to ensure new email entered by user does not already exists.
+        Input:
+            value ==> email entered by user
+        Output:
+            same as input if no validation error else validation error
+        """
         user = self.context['request'].user
         if User.objects.exclude(pk=user.pk).filter(email=value).exists():
             raise serializers.ValidationError({"email": "This email is already in use."})
         return value
 
     def validate_username(self, value):
+        """
+        Method to validate username to ensure new username entered by user does not already exists.
+        Input:
+            value ==>  username entered by user
+        Output:
+            same as input if no validation error else validation error
+        """
         user = self.context['request'].user
         if User.objects.exclude(pk=user.pk).filter(username=value).exists():
             raise serializers.ValidationError({"username": "This username is already in use."})
         return value
 
     def update(self, instance, validated_data):
+        """
+        Method to update the passwords
+        Input:
+            instance ==> current user instance
+            validated_data ==> input data that meets the necessary validations.
+        Output:
+            instance (with username and/or email updated)
+        """
         user = self.context['request'].user
 
+        #to ensure current user is the one trying to change his/her own password
         if user.pk != instance.pk:
             raise serializers.ValidationError({"authorize": "You dont have permission for this user."})
 

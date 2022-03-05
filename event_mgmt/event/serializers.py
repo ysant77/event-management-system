@@ -5,6 +5,9 @@ from versatileimagefield.serializers import VersatileImageFieldSerializer
 
 
 class CategorySerializer(FlexFieldsModelSerializer):
+    """
+    Serializer class for category model
+    """
     class Meta:
         model = Category
         fields = ['pk', 'name']
@@ -13,7 +16,9 @@ class CategorySerializer(FlexFieldsModelSerializer):
         }
 
 class EventSerializer(FlexFieldsModelSerializer):
-
+    """
+    Serializer class for events model
+    """
     class Meta:
         model = Event
         fields = ['pk', 'name', 'description', 'expiration', 'seats', 'created', 'updated']
@@ -24,7 +29,9 @@ class EventSerializer(FlexFieldsModelSerializer):
         }
 
 class TicketSerializer(FlexFieldsModelSerializer):
-
+    """
+    Serializer class for tickets model
+    """
     class Meta:
         model  = Ticket
         fields = ['pk', 'created', 'updated']
@@ -34,12 +41,17 @@ class TicketSerializer(FlexFieldsModelSerializer):
         }
 
 class UserSerializer(FlexFieldsModelSerializer):
-
+    """
+    Serializer class for user model (built in user class)
+    """
     class Meta:
         model = User
         fields = ['id', 'username']
 
 class ImageSerializer(FlexFieldsModelSerializer):
+    """
+    Serializer class for image model
+    """
     image = VersatileImageFieldSerializer(
         sizes='event_headshot'
     )
