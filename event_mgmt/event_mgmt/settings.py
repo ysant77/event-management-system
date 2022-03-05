@@ -44,8 +44,16 @@ INSTALLED_APPS = [
     'django_filters',
     'versatileimagefield',
     'rest_framework_simplejwt.token_blacklist',
-    
+    'django_nose',
     'event'
+]
+
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+
+NOSE_ARGS = [
+    '--with-coverage',
+    '--cover-package=auth,event',
+    '--cover-html'
 ]
 
 MEDIA_URL = '/media/'
